@@ -1,0 +1,9 @@
+[package]
+name = "tksync"
+version = "0.1.0"
+edition = "2021"
+author = "Ryan Hedgecock"
+
+[dependencies]
+yaml-rust = "0.4"
+clap = { version = "4.0", features = ['cargo']}
