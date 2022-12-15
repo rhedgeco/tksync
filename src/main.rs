@@ -25,7 +25,7 @@ fn main() {
                         .required(true)
                         .value_parser(value_parser!(PathBuf)),
                 )
-                .arg(arg!(-r --replace "Overwrite existing project id it exists")),
+                .arg(arg!(-r --replace "Overwrite existing project id if it exists")),
         )
         .get_matches();
 
