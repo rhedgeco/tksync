@@ -1,9 +1,16 @@
 mod config;
+mod sync;
 
-use std::path::{Path, PathBuf};
+use std::{
+    fs::{self, File},
+    io::{self, Read},
+    path::{Path, PathBuf},
+};
 
 use clap::{arg, command, value_parser, Command};
 use config::{TkConfig, TkProject};
+use reqwest::StatusCode;
+use sync::TkFont;
 
 fn main() {
     let matches = command!()
@@ -23,7 +30,7 @@ fn main() {
         .get_matches();
 
     match matches.subcommand() {
-        None => sync(),
+        None => sync_all(),
         Some(("ls", _)) => list(),
         Some(("add", add_matches)) => {
             add(
@@ -53,7 +60,7 @@ fn list() {
     }
 }
 
-fn add(name: &str, id: &str, path: &Path, replace: bool) {
+fn add(id: &str, name: &str, path: &Path, replace: bool) {
     let mut config = match TkConfig::load() {
         Ok(c) => c,
         Err(e) => {
@@ -70,9 +77,17 @@ fn add(name: &str, id: &str, path: &Path, replace: bool) {
         return;
     }
 
+    let absolute_path = match std::fs::canonicalize(path) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("Error creating absolute path.\nError: {e}");
+            return;
+        }
+    };
+
     let project = TkProject {
         name: name.into(),
-        path: path.into(),
+        path: absolute_path,
     };
 
     if let Err(e) = config.add_or_replace(id, project) {
@@ -80,7 +95,7 @@ fn add(name: &str, id: &str, path: &Path, replace: bool) {
     };
 }
 
-fn sync() {
+fn sync_all() {
     let config = match TkConfig::load() {
         Ok(c) => c,
         Err(e) => {
@@ -98,6 +113,147 @@ fn sync() {
     }
 
     println!("Starting Typekit Sync...");
-    // TODO: Sync projects
+
+    for (id, project) in config.iter() {
+        sync_project(id, project);
+    }
+
     println!("Sync Completed.");
+}
+
+fn sync_project(id: &String, project: &TkProject) {
+    println!("Syncing project {id}-{}", project.name);
+    let url = format!("https://use.typekit.net/{id}.css");
+
+    let mut res = match reqwest::blocking::get(url) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("Error syncing project {id}.\nError: {e}");
+            return;
+        }
+    };
+
+    if res.status() != StatusCode::OK {
+        eprintln!("Error syncing project {id}.\nCould not find typekit project with that Id.");
+        return;
+    }
+
+    let mut css = String::new();
+    if let Err(e) = res.read_to_string(&mut css) {
+        eprintln!("Error parsing project {id}.\nError: {e}");
+        return;
+    };
+
+    let sub_folder_name = format!("tksync-{}-{}", id, project.name);
+    let sub_folder = Path::new(&sub_folder_name);
+    let mut save_path = project.path.clone();
+
+    if !save_path.exists() {
+        eprintln!("Error syncing project {id}.\nProject path does not exist.");
+        return;
+    }
+
+    if !save_path.is_absolute() {
+        eprintln!("Error syncing project {id}.\nProject path is not absolute.");
+        return;
+    }
+
+    if !save_path.is_dir() {
+        eprintln!("Error syncing project {id}.\nProject path is not a directory.");
+        return;
+    }
+
+    save_path.push(sub_folder);
+    if let Err(e) = fs::create_dir_all(&save_path) {
+        eprintln!("Error creating directory for {id}.\nError: {e}");
+        return;
+    }
+
+    let fonts = TkFont::parse_css(&css);
+
+    let files = match fs::read_dir(&save_path) {
+        Ok(f) => f,
+        Err(e) => {
+            eprintln!("Error reading files in directory for project {id}.\nError: {e}");
+            return;
+        }
+    };
+
+    for file in files {
+        let file = match file {
+            Ok(f) => f,
+            Err(e) => {
+                eprintln!("Error reading file in directory for project {id}.\nError: {e}");
+                return;
+            }
+        };
+
+        let os_name = file.file_name();
+        let Ok(file_type) = file.file_type() else {
+            continue;
+        };
+
+        if !file_type.is_file() {
+            continue;
+        }
+
+        let name = match os_name.to_str() {
+            Some(n) => match n.strip_suffix(".otf") {
+                Some(n) => n,
+                None => continue,
+            },
+            None => continue,
+        };
+
+        if fonts
+            .iter()
+            .filter(|font| font.name == name)
+            .collect::<Vec<&TkFont>>()
+            .len()
+            == 0
+        {
+            println!("Removing old font: {name}");
+            if let Err(e) = fs::remove_file(file.path()) {
+                eprintln!("Error deleting file {name}.\nError: {e}");
+                return;
+            }
+        }
+    }
+
+    for font in fonts.iter() {
+        save_font(font, &save_path);
+    }
+}
+
+fn save_font(font: &TkFont, path: &Path) {
+    let font_name = format!("{}-{}{}", font.name, font.weight, font.style);
+    let font_path = path.to_owned().join(format!("{font_name}.otf"));
+    if font_path.exists() {
+        return;
+    }
+
+    println!("Downloading new font: {font_name}");
+    let mut res = match reqwest::blocking::get(&font.opentype) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("Error downloading font {font_name}.\nError: {e}");
+            return;
+        }
+    };
+
+    let mut file = match File::create(&font_path) {
+        Ok(f) => f,
+        Err(e) => {
+            eprintln!(
+                "Error creating font file {}.\nError: {e}",
+                font_path.display()
+            );
+            return;
+        }
+    };
+
+    if let Err(e) = io::copy(&mut res, &mut file) {
+        eprintln!("Error writing to file {}.\nError: {e}", font_path.display());
+        return;
+    };
 }
