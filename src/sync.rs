@@ -73,4 +73,8 @@ impl TkFont {
 
         vec
     }
+
+    pub fn full_name(&self) -> String {
+        format!("{}-{}{}", self.name, self.weight, self.style)
+    }
 }

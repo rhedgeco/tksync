@@ -205,13 +205,7 @@ fn sync_project(id: &String, project: &TkProject) {
             None => continue,
         };
 
-        if fonts
-            .iter()
-            .filter(|font| font.name == name)
-            .collect::<Vec<&TkFont>>()
-            .len()
-            == 0
-        {
+        if !fonts.iter().any(|font| font.full_name() == name) {
             println!("Removing old font: {name}");
             if let Err(e) = fs::remove_file(file.path()) {
                 eprintln!("Error deleting file {name}.\nError: {e}");
@@ -226,7 +220,7 @@ fn sync_project(id: &String, project: &TkProject) {
 }
 
 fn save_font(font: &TkFont, path: &Path) {
-    let font_name = format!("{}-{}{}", font.name, font.weight, font.style);
+    let font_name = font.full_name();
     let font_path = path.to_owned().join(format!("{font_name}.otf"));
     if font_path.exists() {
         return;
