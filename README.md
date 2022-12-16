@@ -21,5 +21,31 @@ Arguments:
 Options:
   -r, --replace  Overwrite existing project id if it exists
 ```
+# Installation
+### Arch Linux
+```
+sudo pacman -S --needed base-devel
+git clone https://aur.archlinux.org/tksync.git
+cd tksync
+makepkg -si
+```
+### Arch Linux using [paru](https://github.com/Morganamilo/paru)
+```
+paru -S tksync
+```
+### Manual Install
+Install the `rust` package manager [cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html)
+
+Then build the binary
+```
+git clone https://github.com/rhedgeco/tksync.git
+cd tksync
+cargo build --release
+```
+
+Next, copy the binary to a place of your choosing (probably somewhere in your shells PATH):
+```
+cp ./target/release/tksync /usr/bin/tksync
+```
 
 ## [MIT LICENSE](LICENSE.md)
