@@ -9,7 +9,7 @@ tksync
 ```
 
 ### Add new Typekit Project
-To add a new project to be tracked by tksync, run the following:
+To add a new project to be tracked by tksync, first [create a new Web Project in Adobe Fonts](#how-to-create-a-new-web-project-in-adobe-fonts):
 ```
 tksync add [OPTIONS] <ID> <NAME> <PATH>
 
@@ -21,6 +21,35 @@ Arguments:
 Options:
   -r, --replace  Overwrite existing project id if it exists
 ```
+
+### How to create a new Web Project in Adobe Fonts
+Go to [Adobe Fonts](https://fonts.adobe.com) and search for a font that you want.
+
+Once you find one, click on the font, and click the '**</> Add to Web Project**' button.
+
+![Add to Web Project](./readme-assets/adobe-fonts-quicksand.png)
+
+Then click on the dropdown for projects, and either add the font to an existing project or create a new project.
+
+![Create new project](./readme-assets/create-new-project.png)
+
+Once added, your project id is the also the filename for the corresponding web project css file.
+
+![Project ID](./readme-assets/project-id.png)
+
+The project ID can also be accessed by clicking on '**Manage fonts**' in the top right, and then clicking '**Web Projects**'.
+
+![Manage Fonts](./readme-assets/manage-fonts.png)
+
+Once a new project ID is created, you may add that project to `tksync` using the following:
+```
+tksync add ozf1hrw LinuxFontLibrary /usr/share/fonts
+```
+
+The name and download directory are not restricted by the project. Just choose the best location for your fonts to be downloaded to. For me, that was `/usr/share/fonts`
+
+> Note: if you have directories that require special privilages like `/usr/share/fonts`, you will have to run the sync commmand with sudo `sudo tksync`.
+
 # Installation
 ### Arch Linux
 ```
