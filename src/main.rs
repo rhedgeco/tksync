@@ -85,6 +85,42 @@ fn add(id: &str, name: &str, path: &Path, replace: bool) {
         }
     };
 
+    // check if directory has write permissions
+    let metadata = match fs::metadata(&absolute_path) {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!(
+                "Error getting metadata for directory {}.\nError: {e}",
+                absolute_path.display()
+            );
+            return;
+        }
+    };
+
+    if metadata.permissions().readonly() {
+        eprintln!(
+            "Error syncing project to path {}: Permission Denied.",
+            absolute_path.display()
+        );
+        return;
+    }
+
+    let url = format!("https://use.typekit.net/{id}.css");
+    let res = match reqwest::blocking::get(url) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("Error checking for project {id}.\nError: {e}");
+            return;
+        }
+    };
+
+    if res.status() != StatusCode::OK {
+        eprintln!(
+            "Error adding typekit project id '{id}'.\nNo typekit project found with that Id."
+        );
+        return;
+    }
+
     let project = TkProject {
         name: name.into(),
         path: absolute_path,
