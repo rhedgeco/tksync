@@ -1,6 +1,6 @@
 use std::{
     collections::{hash_map::Iter, HashMap},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use serde::{Deserialize, Serialize};
@@ -9,6 +9,14 @@ use serde::{Deserialize, Serialize};
 pub struct TkProject {
     pub name: String,
     pub path: PathBuf,
+}
+
+impl TkProject {
+    pub fn get_full_path_using_id(&self, id: &str) -> PathBuf {
+        let sub_folder_name = format!("{}-{}-tksync", self.name, id);
+        let sub_folder = Path::new(&sub_folder_name);
+        self.path.join(sub_folder)
+    }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Default)]
@@ -26,13 +34,20 @@ impl TkConfig {
         self.projects.iter()
     }
 
+    pub fn get(&self, id: &str) -> Option<&TkProject> {
+        self.projects.get(id)
+    }
+
     pub fn contains(&self, id: &str) -> bool {
         self.projects.contains_key(id)
     }
 
-    pub fn add_or_replace(&mut self, id: &str, project: TkProject) -> anyhow::Result<()> {
+    pub fn remove(&mut self, id: &str) {
+        self.projects.remove(id);
+    }
+
+    pub fn add_or_replace(&mut self, id: &str, project: TkProject) {
         self.projects.insert(id.to_owned(), project);
-        self.store()
     }
 
     pub fn load() -> anyhow::Result<Self> {
