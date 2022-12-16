@@ -1,7 +1,6 @@
 use std::{
     collections::{hash_map::Iter, HashMap},
-    fs::{self, File},
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
 use serde::{Deserialize, Serialize};
@@ -12,15 +11,13 @@ pub struct TkProject {
     pub path: PathBuf,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Default)]
 pub struct TkConfig {
     #[serde(flatten)]
     projects: HashMap<String, TkProject>,
 }
 
 impl TkConfig {
-    const CONFIG_PATH: &str = "config.yml";
-
     pub fn is_empty(&self) -> bool {
         self.projects.is_empty()
     }
@@ -39,20 +36,12 @@ impl TkConfig {
     }
 
     pub fn load() -> anyhow::Result<Self> {
-        let config_path = Path::new(Self::CONFIG_PATH);
-        if !config_path.exists() {
-            return Ok(Self {
-                projects: Default::default(),
-            });
-        }
-
-        let config_file = File::open(config_path)?;
-        Ok(serde_yaml::from_reader(config_file)?)
+        let config: TkConfig = confy::load("tksync", "default-config")?;
+        Ok(config)
     }
 
     pub fn store(&self) -> anyhow::Result<()> {
-        let yaml_string = serde_yaml::to_string(self)?;
-        fs::write(Self::CONFIG_PATH, yaml_string)?;
+        confy::store("tksync", "default-config", &self)?;
         Ok(())
     }
 }
