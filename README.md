@@ -9,7 +9,9 @@ tksync
 ```
 
 ### Add new Typekit Project
-To add a new project to be tracked by tksync, first [create a new Web Project in Adobe Fonts](#how-to-create-a-new-web-project-in-adobe-fonts):
+To add a new project to be tracked by tksync, first [create a new Web Project in Adobe Fonts](#how-to-create-a-new-web-project-in-adobe-fonts).
+
+Then run use the tksync add command:
 ```
 tksync add [OPTIONS] <ID> <NAME> <PATH>
 
