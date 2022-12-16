@@ -14,7 +14,13 @@ use sync::TkFont;
 
 fn main() {
     let matches = command!()
-        .subcommand(Command::new("ls").about("Prints the configuration file"))
+        .subcommand(Command::new("ls").about("Lists all current sync projects"))
+        .subcommand(
+            Command::new("remove")
+                .about("Removes a tracked project.")
+                .arg(arg!(<ID> "Id of the typekit project").required(true))
+                .arg(arg!(-k --keep "Keep project files on disk")),
+        )
         .subcommand(
             Command::new("add")
                 .about("Adds a new project to be tracked")
@@ -32,6 +38,10 @@ fn main() {
     match matches.subcommand() {
         None => sync_all(),
         Some(("ls", _)) => list(),
+        Some(("remove", remove_matches)) => remove(
+            remove_matches.get_one::<String>("ID").expect("required"),
+            remove_matches.get_flag("keep"),
+        ),
         Some(("add", add_matches)) => {
             add(
                 add_matches.get_one::<String>("ID").expect("required"),
@@ -126,9 +136,38 @@ fn add(id: &str, name: &str, path: &Path, replace: bool) {
         path: absolute_path,
     };
 
-    if let Err(e) = config.add_or_replace(id, project) {
-        println!("There was an error adding the project.\nError: {e}")
+    config.add_or_replace(id, project);
+    if let Err(e) = config.store() {
+        println!("There was an error writing information to the current configuration.\nError: {e}")
+    }
+}
+
+fn remove(id: &str, keep_files: bool) {
+    let mut config = match TkConfig::load() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Error loading config file.\nError: {e}");
+            return;
+        }
     };
+
+    let Some(project) = config.get(id) else {
+        eprintln!("Project ID does not exist in the current configuration");
+        return;
+    };
+
+    if !keep_files {
+        let font_path = project.get_full_path_using_id(id);
+        if let Err(e) = fs::remove_dir_all(font_path) {
+            eprintln!("Error deleting project files.\nError: {e}");
+            return;
+        }
+    }
+
+    config.remove(id);
+    if let Err(e) = config.store() {
+        println!("There was an error writing information to the current configuration.\nError: {e}")
+    }
 }
 
 fn sync_all() {
@@ -158,7 +197,7 @@ fn sync_all() {
 }
 
 fn sync_project(id: &String, project: &TkProject) {
-    println!("Syncing project {id}-{}", project.name);
+    println!("Syncing project {}-{id}", project.name);
     let url = format!("https://use.typekit.net/{id}.css");
 
     let mut res = match reqwest::blocking::get(url) {
@@ -180,26 +219,22 @@ fn sync_project(id: &String, project: &TkProject) {
         return;
     };
 
-    let sub_folder_name = format!("tksync-{}-{}", id, project.name);
-    let sub_folder = Path::new(&sub_folder_name);
-    let mut save_path = project.path.clone();
-
-    if !save_path.exists() {
+    if !project.path.exists() {
         eprintln!("Error syncing project {id}.\nProject path does not exist.");
         return;
     }
 
-    if !save_path.is_absolute() {
+    if !project.path.is_absolute() {
         eprintln!("Error syncing project {id}.\nProject path is not absolute.");
         return;
     }
 
-    if !save_path.is_dir() {
+    if !project.path.is_dir() {
         eprintln!("Error syncing project {id}.\nProject path is not a directory.");
         return;
     }
 
-    save_path.push(sub_folder);
+    let save_path = project.get_full_path_using_id(id);
     if let Err(e) = fs::create_dir_all(&save_path) {
         eprintln!("Error creating directory for {id}.\nError: {e}");
         return;
