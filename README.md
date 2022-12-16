@@ -45,10 +45,10 @@ The project ID can also be accessed by clicking on '**Manage fonts**' in the top
 
 Once a new project ID is created, you may add that project to `tksync` using the following:
 ```
-tksync add ozf1hrw LinuxFontLibrary /usr/share/fonts
+tksync add ozf1hrw LinuxFontLibrary ~/.fonts
 ```
 
-The name and download directory are not restricted by the project. Just choose the best location for your fonts to be downloaded to. For me, that was `/usr/share/fonts`
+The name and download directory are not restricted by the project. Just choose the best location for your fonts to be downloaded to. For global fonts, this is usually `/usr/share/fonts`
 
 > Note: if you sync to directories that require special privilages like `/usr/share/fonts`, you will have to run the sync commmand with sudo `sudo tksync`. Be aware both sudo and individual users will have different configuration files, so you will also need to add the project to the sudo configuration with `sudo tksync add ...`.
 
